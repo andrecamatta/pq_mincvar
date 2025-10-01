@@ -1,0 +1,28 @@
+# Environment
+.env
+
+# Julia
+Manifest.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+deps/deps.jl
+.DS_Store
+
+# Results (optional - uncomment to include in repo)
+# results/
+# fig/
+
+# Logs
+*.log
+backtest_output.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
