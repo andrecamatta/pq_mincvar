@@ -228,7 +228,8 @@ Groups assets by class to reduce legend clutter.
 function plot_allocation_over_time(
     weights_df::DataFrame,
     dates::Vector{Date};
-    filename::String="allocation.png"
+    filename::String="allocation.png",
+    strategy_name::String=""
 )
     tickers = names(weights_df)[4:end]  # skip date, rebalanced, turnover
 
@@ -271,13 +272,18 @@ function plot_allocation_over_time(
         RGB(204/255, 121/255, 167/255)     # Purple - Commodities
     ]
 
+    # Build title with strategy name if provided
+    title_text = isempty(strategy_name) ?
+        "Alocação do Portfólio por Classe de Ativo" :
+        "Alocação do Portfólio por Classe de Ativo\n$(strategy_name)"
+
     p = areaplot(
         actual_dates,
         aggregated_weights,
         labels=permutedims(class_labels),
         xlabel="Data",
         ylabel="Peso",
-        title="Alocação do Portfólio por Classe de Ativo",
+        title=title_text,
         legend=:outerbottom,
         legendcolumns=4,
         size=(1200, 650),
@@ -343,16 +349,19 @@ function plot_tail_losses(
         bottom_margin=15Plots.mm,
         fillalpha=0.6,  # Transparency for overlaps
         linewidth=0,
-        color=colors
+        color=colors,
+        grid=false  # Remove grid lines that create stripes
     )
 
-    # Overlay boxplot for median/quartiles visibility
+    # Overlay boxplot for median/quartiles visibility (only show median line)
     boxplot!(p, sorted_labels, [data[l] for l in sorted_labels],
         fillalpha=0.0,  # Transparent boxes (only show lines)
-        linewidth=2,
-        color=:black,
-        outliers=false,  # Don't show outliers (violin already shows distribution)
-        whisker_width=0.5
+        linewidth=0,    # No box outline
+        whisker_width=0,  # No whiskers
+        color=:white,   # Invisible
+        outliers=false,  # Don't show outliers
+        bar_width=0.8,
+        marker=(4, :black, stroke(2, :black))  # Only show median as thick black line
     )
 
     savefig(p, "fig/$filename")
@@ -449,7 +458,11 @@ function generate_all_plots(all_results::Dict, metrics_df::DataFrame)
     best_key = (:TYLER, :MINCVAR, 0.95, :MONTHLY, 0.0)
     if haskey(all_results, best_key)
         weights_df, _, _, dates = all_results[best_key]
-        plot_allocation_over_time(weights_df, dates, filename="allocation_best.png")
+        estimator, strategy, α, policy, band = best_key
+        strategy_label = "$(estimator)-$(strategy)-α$(Int(α*100))-$(policy)"
+        plot_allocation_over_time(weights_df, dates,
+            filename="allocation_best.png",
+            strategy_name=strategy_label)
     end
 
     @info "Plots saved to ./fig/"
