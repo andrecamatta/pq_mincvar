@@ -8,10 +8,10 @@ Plot cumulative wealth curves for multiple strategies.
 """
 function plot_wealth_curves(all_results::Dict; filename::String="wealth_curves.png")
     p = plot(
-        xlabel="Date",
-        ylabel="Cumulative Wealth",
-        title="Portfolio Performance Comparison",
-        legend=:topleft,
+        xlabel="Data",
+        ylabel="Riqueza Acumulada",
+        title="Comparação de Desempenho dos Portfólios",
+        legend=:outerbottom,
         size=(1200, 600)
     )
 
@@ -55,13 +55,16 @@ end
 
 """
 Plot empirical efficient frontier in (σ, CVaR) space.
+Clusters nearby points to avoid visual clutter.
 """
 function plot_frontier(
     all_results::Dict,
     α::Float64=0.95;
-    filename::String="frontier_95.png"
+    filename::String="frontier_95.png",
+    cluster_threshold::Float64=0.005  # 0.5% relative distance
 )
-    points = Dict(:LW => [], :HUBER => [], :TYLER => [], :EW => [])
+    # Collect all points with metadata
+    all_points = []
 
     for (key, result) in all_results
         estimator, strategy, strat_α, policy, band = key
@@ -76,29 +79,89 @@ function plot_frontier(
         σ = std(returns) * sqrt(252)
         cvar = calculate_cvar(returns, α) * sqrt(252)
 
-        push!(points[estimator], (σ, cvar, string(strategy)))
+        push!(all_points, (σ=σ, cvar=cvar, estimator=estimator, strategy=string(strategy)))
     end
 
+    # Cluster nearby points
+    clusters = []
+    used = Set{Int}()
+
+    for i in 1:length(all_points)
+        if i ∈ used
+            continue
+        end
+
+        p1 = all_points[i]
+        cluster_points = [p1]
+        cluster_estimators = Set([p1.estimator])
+        push!(used, i)
+
+        # Find nearby points (same strategy only)
+        for j in (i+1):length(all_points)
+            if j ∈ used
+                continue
+            end
+
+            p2 = all_points[j]
+
+            # Only cluster if same strategy
+            if p1.strategy != p2.strategy
+                continue
+            end
+
+            # Compute relative distance
+            dist = sqrt(((p2.σ - p1.σ) / p1.σ)^2 + ((p2.cvar - p1.cvar) / p1.cvar)^2)
+
+            if dist < cluster_threshold
+                push!(cluster_points, p2)
+                push!(cluster_estimators, p2.estimator)
+                push!(used, j)
+            end
+        end
+
+        # Compute cluster centroid
+        σ_mean = mean([p.σ for p in cluster_points])
+        cvar_mean = mean([p.cvar for p in cluster_points])
+
+        # Create consolidated label
+        estimators_sorted = sort(collect(cluster_estimators), by=string)
+        if length(estimators_sorted) == 3
+            label = "Robust-$(p1.strategy)"
+        elseif length(estimators_sorted) == 2
+            label = "$(estimators_sorted[1])/$(estimators_sorted[2])-$(p1.strategy)"
+        else
+            label = "$(estimators_sorted[1])-$(p1.strategy)"
+        end
+
+        push!(clusters, (
+            σ=σ_mean,
+            cvar=cvar_mean,
+            strategy=p1.strategy,
+            label=label,
+            n_points=length(cluster_points)
+        ))
+    end
+
+    # Plot clusters
     p = plot(
-        xlabel="Annualized Volatility",
-        ylabel="Annualized CVaR (α=$α)",
-        title="Efficient Frontier (Risk-CVaR Space)",
-        legend=:topright,
+        xlabel="Volatilidade Anualizada",
+        ylabel="CVaR Anualizado (α=$α)",
+        title="Fronteira Eficiente (Espaço Risco-CVaR)",
+        legend=:outerbottom,
         size=(800, 600)
     )
 
-    colors = Dict(:LW => :blue, :HUBER => :green, :TYLER => :red, :EW => :black)
+    colors = Dict("MINCVAR" => :blue, "MINVAR" => :red, "BUYHOLD" => :black)
     markers = Dict("MINCVAR" => :circle, "MINVAR" => :square, "BUYHOLD" => :star)
 
-    for (estimator, pts) in points
-        for (σ, cvar, strat) in pts
-            scatter!(p, [σ], [cvar],
-                label="$(estimator)-$(strat)",
-                color=colors[estimator],
-                marker=markers[strat],
-                markersize=strat == "BUYHOLD" ? 12 : 8,
-                alpha=0.7)
-        end
+    for cluster in clusters
+        scatter!(p, [cluster.σ], [cluster.cvar],
+            label=cluster.label,
+            color=colors[cluster.strategy],
+            marker=markers[cluster.strategy],
+            markersize=cluster.strategy == "BUYHOLD" ? 12 : (6 + 2 * cluster.n_points),
+            alpha=0.7,
+            markerstrokewidth=2)
     end
 
     savefig(p, "fig/$filename")
@@ -134,10 +197,10 @@ function plot_allocation_over_time(
         actual_dates,
         weight_matrix,  # Do NOT transpose - already correct
         labels=permutedims(tickers),
-        xlabel="Date",
-        ylabel="Weight",
-        title="Portfolio Allocation Over Time",
-        legend=:outerright,
+        xlabel="Data",
+        ylabel="Peso",
+        title="Alocação do Portfólio ao Longo do Tempo",
+        legend=:outerbottom,
         size=(1200, 600),
         palette=:tab20
     )
@@ -182,12 +245,13 @@ function plot_tail_losses(
     p = violin(
         labels,
         [data[l] for l in labels],
-        xlabel="Strategy",
-        ylabel="Return",
-        title="Distribution of Tail Losses (worst $(Int(α*100))%)",
+        xlabel="Estratégia",
+        ylabel="Retorno",
+        title="Distribuição das Perdas na Cauda (piores $(Int(α*100))%)",
         legend=false,
-        size=(1200, 600),
-        xrotation=45
+        size=(1200, 700),
+        xrotation=45,
+        bottom_margin=15Plots.mm
     )
 
     savefig(p, "fig/$filename")
@@ -217,9 +281,9 @@ function plot_turnover_heatmap(metrics_df::DataFrame; filename::String="turnover
         strategies,
         estimators,
         turnover_matrix,
-        xlabel="Strategy",
-        ylabel="Estimator",
-        title="Annualized Turnover Heatmap",
+        xlabel="Estratégia",
+        ylabel="Estimador",
+        title="Mapa de Calor: Turnover Anualizado",
         color=:viridis,
         size=(800, 600)
     )
@@ -255,9 +319,9 @@ function plot_rebalance_histogram(all_results::Dict; filename::String="rebalance
     p = bar(
         labels,
         counts,
-        xlabel="Strategy",
-        ylabel="Number of Rebalances",
-        title="Rebalancing Events by Policy",
+        xlabel="Estratégia",
+        ylabel="Número de Rebalanceamentos",
+        title="Eventos de Rebalanceamento por Política",
         legend=false,
         size=(1200, 600),
         xrotation=45

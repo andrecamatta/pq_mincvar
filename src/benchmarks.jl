@@ -6,7 +6,7 @@ Rebalances annually to maintain equal weights.
 """
 function benchmark_equal_weight(
     returns_df::DataFrame;
-    cost_bps::Float64 = 10.0
+    cost_bps::Float64 = 6.0
 )
     dates = returns_df.date
     tickers = names(returns_df)[2:end]

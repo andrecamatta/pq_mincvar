@@ -68,7 +68,7 @@ function main()
         "bands" => [0.02, 0.05, 0.10],
 
         # Optimization
-        "cost_bps" => 10.0,
+        "cost_bps" => 6.0,  # Realistic average for liquid ETFs (2024)
         "lambda" => 0.001,  # Turnover penalty coefficient
         "max_weight" => 0.30
     )
@@ -139,11 +139,11 @@ function main()
         elseif estimator == :HUBER
             μ = [huber_mean(R_window[:, i]) for i in 1:size(R_window, 2)]
             R_centered = R_window .- μ'
-            Σ, _ = oas_shrinkage(R_centered)
+            Σ, _ = oas_shrinkage_precentered(R_centered)
         elseif estimator == :TYLER
             # Apply same scaling as in robust_estimate
             R_centered = R_window .- median(R_window, dims=1)
-            Σ_tyler = tyler_estimator(R_window)
+            Σ_tyler = tyler_estimator(R_centered)  # Use centered data
             sample_scale = mean(diag(cov(R_centered, dims=1, corrected=false)))
             Σ_tyler_scaled = Σ_tyler * sample_scale
             # Apply shrinkage

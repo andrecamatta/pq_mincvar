@@ -58,7 +58,7 @@ function backtest_strategy(
     window_size::Int = 756,
     policy::Symbol = :MONTHLY,
     band::Float64 = 0.05,
-    cost_bps::Float64 = 10.0,
+    cost_bps::Float64 = 6.0,
     λ::Float64 = 0.0,
     max_weight::Float64 = 0.30
 )
@@ -173,7 +173,7 @@ function run_all_backtests(
     policies::Vector{Symbol} = [:MONTHLY, :BANDS],
     bands::Vector{Float64} = [0.02, 0.05, 0.10],
     window_size::Int = 756,
-    cost_bps::Float64 = 10.0,
+    cost_bps::Float64 = 6.0,
     λ::Float64 = 0.0,
     max_weight::Float64 = 0.30
 )

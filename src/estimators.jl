@@ -1,4 +1,4 @@
-using LinearAlgebra, Statistics
+using LinearAlgebra, Statistics, StatsBase
 
 """
 Oracle Approximating Shrinkage (OAS) estimator for covariance matrix.
@@ -11,6 +11,34 @@ function oas_shrinkage(X::Matrix{Float64})
 
     # Sample covariance
     S = cov(X, dims=1, corrected=true)
+
+    # Target: scaled identity
+    τ = tr(S) / p
+
+    # OAS shrinkage intensity (simplified formula)
+    tr_S2 = sum(S .^ 2)
+    tr_S_sq = tr(S)^2 / p
+
+    num = (1 - 2/p) * tr_S2 + tr_S_sq
+    den = (n + 1 - 2/p) * (tr_S2 - tr_S_sq / p)
+
+    ρ = min(1.0, max(0.0, num / den))
+
+    # Shrunk covariance
+    Σ_shrunk = (1 - ρ) * S + ρ * τ * I(p)
+
+    return Σ_shrunk, ρ
+end
+
+"""
+OAS shrinkage for pre-centered data (does NOT re-center).
+Use this when data has already been centered by a robust estimator.
+"""
+function oas_shrinkage_precentered(X_centered::Matrix{Float64})
+    n, p = size(X_centered)
+
+    # Compute covariance matrix manually (without re-centering)
+    S = (X_centered' * X_centered) / (n - 1)
 
     # Target: scaled identity
     τ = tr(S) / p
@@ -129,7 +157,7 @@ function robust_estimate(X::Matrix{Float64}, estimator::Symbol)
         # Huber robust mean + OAS covariance
         μ = [huber_mean(X[:, j]) for j in 1:p]
         X_centered = X .- μ'
-        Σ, ρ = oas_shrinkage(X_centered)
+        Σ, ρ = oas_shrinkage_precentered(X_centered)
         @debug "HUBER: shrinkage intensity ρ = $(round(ρ, digits=4))"
 
     elseif estimator == :TYLER
@@ -137,8 +165,8 @@ function robust_estimate(X::Matrix{Float64}, estimator::Symbol)
         μ = vec(median(X, dims=1))
         X_centered = X .- μ'
 
-        # Get Tyler shape matrix (normalized to tr(Σ) = p)
-        Σ_tyler = tyler_estimator(X)
+        # Get Tyler shape matrix (normalized to tr(Σ) = p) - use CENTERED data
+        Σ_tyler = tyler_estimator(X_centered)
 
         # Rescale to match data scale
         # Tyler gives shape (correlation structure), need to add scale back
