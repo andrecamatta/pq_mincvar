@@ -1,81 +1,81 @@
-# Min-CVaR with Robust Estimators
+# Min-CVaR com Estimadores Robustos
 
-## Summary
+## Resumo
 
-This project implements and backtests portfolio optimization strategies comparing:
-- **Min-CVaR** (Conditional Value-at-Risk) optimization using Rockafellar-Uryasev formulation
-- **Min-Var** (Minimum Variance) optimization
+Este projeto implementa e testa estratégias de otimização de portfólio comparando:
+- **Min-CVaR** (Conditional Value-at-Risk) usando formulação de Rockafellar-Uryasev
+- **Min-Var** (Mínima Variância)
 
-With three robust covariance estimators:
+Com três estimadores robustos de covariância:
 - **:LW** - Ledoit-Wolf / Oracle Approximating Shrinkage (OAS)
-- **:HUBER** - Huber M-estimator for mean + OAS covariance
-- **:TYLER** - Tyler M-estimator for scatter + shrinkage
+- **:HUBER** - M-estimador de Huber para média + covariância OAS
+- **:TYLER** - M-estimador de Tyler para matriz de dispersão + encolhimento
 
-## Universe
+## Universo
 
-**Final Assets (16):** ["SPY", "IWD", "IWF", "IWM", "EFA", "EEM", "VWO", "TLT", "IEF", "LQD", "HYG", "GLD", "SLV", "VNQ", "DBC", "USO"]
+**Ativos Finais (16):** ["SPY", "IWD", "IWF", "IWM", "EFA", "EEM", "VWO", "TLT", "IEF", "LQD", "HYG", "GLD", "SLV", "VNQ", "DBC", "USO"]
 
-**Period:** 2007-04-12 to 2025-10-03
+**Período:** 2007-04-12 até 2025-10-03
 
-**Filter:** ETFs with ≥ 15 years of history
+**Filtro:** ETFs com ≥ 15 anos de histórico
 
-## Parameters
+## Parâmetros
 
-- **Estimation window:** 756 days (~3 years)
-- **Rebalance:** End-of-month
-- **Policies:** Monthly, Bands (2%, 5%, 10%)
-- **Transaction costs:** 6.0 bps per side
-- **Position limit:** 30% per asset
-- **CVaR confidence levels:** α = [0.95, 0.99]
+- **Janela de estimação:** 756 dias (~3 anos)
+- **Rebalanceamento:** Fim do mês
+- **Políticas:** Mensal, Bandas (2%, 5%, 10%)
+- **Custos de transação:** 6.0 bps (média realista para ETFs líquidos, 2024)
+- **Limite por ativo:** 30% por ativo
+- **Níveis de confiança CVaR:** α = [0.95, 0.99]
 
-## Key Findings
+## Principais Resultados
 
-### Tail Diagnostics (Multivariate t-distribution)
+### Diagnóstico de Caudas (distribuição t multivariada)
 - LW: ν = 15
 - TYLER: ν = 15
 - HUBER: ν = 15
 
-### Performance Metrics
+### Métricas de Performance
 
-See `results/metrics.csv` for detailed metrics including:
-- Annualized return and volatility
-- Sharpe and Sortino ratios
-- VaR and CVaR at 95% and 99% confidence levels
-- Maximum drawdown and Ulcer index
-- Annualized turnover and number of rebalances
+Ver `results/metrics.csv` para métricas detalhadas incluindo:
+- Retorno e volatilidade anualizados
+- Índices de Sharpe e Sortino
+- VaR e CVaR nos níveis de confiança de 95% e 99%
+- Drawdown máximo e índice Ulcer
+- Turnover anualizado e número de rebalanceamentos
 
-### Best Strategies (by Sharpe Ratio)
+### Melhores Estratégias (por Índice de Sharpe)
 
-Top 5 strategies:
+Top 5 estratégias:
 1. HUBER-MINCVAR-α95-BANDS: Sharpe=0.533
 2. TYLER-MINCVAR-α95-BANDS: Sharpe=0.533
 3. LW-MINCVAR-α95-BANDS: Sharpe=0.533
 4. HUBER-MINCVAR-α95-BANDS: Sharpe=0.518
 5. TYLER-MINCVAR-α95-BANDS: Sharpe=0.518
 
-## Interpretation
+## Interpretação
 
-- **Tyler estimator** typically reduces tail risk (CVaR/MDD) vs Gaussian (LW), especially when ν < 10
-- **Band policies** significantly reduce turnover vs monthly rebalancing, with modest performance trade-offs
-- **Min-CVaR** strategies show better downside protection compared to Min-Var during crisis periods
-- **Transaction costs** materially impact net performance, particularly for high-turnover strategies
+- **Estimador Tyler** tipicamente reduz risco de cauda (CVaR/MDD) vs Gaussiano (LW), especialmente quando ν < 10
+- **Políticas de bandas** reduzem significativamente o turnover vs rebalanceamento mensal, com trade-offs modestos de performance
+- **Estratégias Min-CVaR** apresentam melhor proteção contra quedas comparadas a Min-Var durante períodos de crise
+- **Custos de transação** impactam materialmente a performance líquida, particularmente em estratégias de alto turnover
 
-## Files
+## Arquivos
 
-- `results/metrics.csv` - Comprehensive performance metrics
-- `results/weights_*.csv` - Portfolio weights over time
-- `fig/` - Visualizations (wealth curves, frontiers, allocation, tail losses)
+- `results/metrics.csv` - Métricas de performance abrangentes
+- `results/weights_*.csv` - Pesos do portfólio ao longo do tempo
+- `fig/` - Visualizações (curvas de riqueza, fronteiras, alocação, perdas na cauda)
 
-## Reproducibility
+## Reprodutibilidade
 
-**Julia version:** 1.11.7
+**Versão Julia:** 1.11.7
 
-**Packages:** See `Project.toml`
+**Pacotes:** Ver `Project.toml`
 
-**Random seed:** Not used (deterministic optimization)
+**Seed aleatória:** Não utilizada (otimização determinística)
 
-**Execution:** `julia main.jl`
+**Execução:** `julia main.jl`
 
 ---
 
-Generated on 2025-10-05T15:26:23.399
+Gerado em 2025-10-05T15:26:23.399
