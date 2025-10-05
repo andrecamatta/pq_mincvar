@@ -108,13 +108,17 @@ function backtest_strategy(
             # Estimate parameters
             μ, Σ = robust_estimate(R_window, estimator)
 
+            # Determine effective lambda (zero on first rebalance to avoid getting stuck at equal-weight)
+            is_first_rebalance = all(w_strategic .≈ ones(p)/p)
+            λ_eff = is_first_rebalance ? 0.0 : λ
+
             # Optimize portfolio (use w_strategic as previous weights)
             if strategy == :MINCVAR
                 w_target, _ = optimize_mincvar(R_window, α;
-                    w_prev=w_strategic, λ=λ, max_weight=max_weight)
+                    w_prev=w_strategic, λ=λ_eff, max_weight=max_weight)
             elseif strategy == :MINVAR
                 w_target, _ = optimize_minvar(Σ;
-                    w_prev=w_strategic, λ=λ, max_weight=max_weight)
+                    w_prev=w_strategic, λ=λ_eff, max_weight=max_weight)
             else
                 error("Unknown strategy: $strategy")
             end
@@ -132,6 +136,8 @@ function backtest_strategy(
             if rebalance
                 # Turnover is based on strategic weights, not drifted weights
                 turnover = sum(abs.(w_target - w_strategic))
+
+
                 transaction_cost = (cost_bps / 10000) * turnover
                 portfolio_value *= (1 - transaction_cost)
 
