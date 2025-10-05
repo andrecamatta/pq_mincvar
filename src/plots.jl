@@ -201,20 +201,38 @@ function plot_frontier(
         end
     end
 
-    # Highlight Pareto frontier (convex hull of MINCVAR points)
-    mincvar_points = filter(p -> p.strategy == "MINCVAR", all_points)
-    if length(mincvar_points) >= 2
-        # Sort by σ
-        sorted_pts = sort(mincvar_points, by=p -> p.σ)
-        σ_frontier = [p.σ for p in sorted_pts]
-        cvar_frontier = [p.cvar for p in sorted_pts]
+    # Highlight Pareto frontier (lower convex hull - dominating strategies)
+    # Include all strategies for true Pareto frontier
+    if length(all_points) >= 2
+        # Sort by σ (ascending)
+        sorted_pts = sort(all_points, by=p -> p.σ)
 
-        plot!(p, σ_frontier, cvar_frontier,
-            label="Fronteira Pareto",
-            linewidth=3,
-            color=:green,
-            alpha=0.5,
-            linestyle=:solid)
+        # Build lower convex hull (Pareto frontier)
+        frontier_pts = [sorted_pts[1]]  # Start with lowest risk
+
+        for i in 2:length(sorted_pts)
+            # Add point if it has lower CVaR than previous frontier point
+            # (dominates in CVaR dimension)
+            if sorted_pts[i].cvar < frontier_pts[end].cvar
+                push!(frontier_pts, sorted_pts[i])
+            end
+        end
+
+        if length(frontier_pts) >= 2
+            σ_frontier = [p.σ for p in frontier_pts]
+            cvar_frontier = [p.cvar for p in frontier_pts]
+
+            plot!(p, σ_frontier, cvar_frontier,
+                label="Fronteira Pareto",
+                linewidth=4,
+                color=:red,
+                alpha=0.7,
+                linestyle=:solid,
+                marker=:circle,
+                markersize=6,
+                markerstrokewidth=2,
+                markerstrokecolor=:darkred)
+        end
     end
 
     savefig(p, "fig/$filename")
@@ -454,14 +472,27 @@ function generate_all_plots(all_results::Dict, metrics_df::DataFrame)
     plot_tail_losses(all_results, 0.01, filename="tail_losses_1pct.png")
     plot_turnover_heatmap(metrics_df)
 
-    # Plot allocation for best strategy (example: TYLER-MINCVAR-95-MONTHLY)
-    best_key = (:TYLER, :MINCVAR, 0.95, :MONTHLY, 0.0)
-    if haskey(all_results, best_key)
-        weights_df, _, _, dates = all_results[best_key]
-        estimator, strategy, α, policy, band = best_key
-        strategy_label = "$(estimator)-$(strategy)-α$(Int(α*100))-$(policy)"
+    # Plot allocation for best Sharpe Ratio strategy
+    # TYLER-MINVAR BANDS (Sharpe=0.576, #1 overall)
+    best_sharpe_key = (:TYLER, :MINVAR, 0.0, :BANDS, 0.02)
+    if haskey(all_results, best_sharpe_key)
+        weights_df, _, _, dates = all_results[best_sharpe_key]
+        estimator, strategy, α, policy, band = best_sharpe_key
+        strategy_label = "$(estimator)-$(strategy) (BANDS $(Int(band*100))%) - Melhor Sharpe"
         plot_allocation_over_time(weights_df, dates,
-            filename="allocation_best.png",
+            filename="allocation_best_sharpe.png",
+            strategy_name=strategy_label)
+    end
+
+    # Plot allocation for lowest MaxDD strategy
+    # HUBER-MINCVAR α95% BANDS 10% (MaxDD=16.0%, melhor proteção downside)
+    best_dd_key = (:HUBER, :MINCVAR, 0.95, :BANDS, 0.10)
+    if haskey(all_results, best_dd_key)
+        weights_df, _, _, dates = all_results[best_dd_key]
+        estimator, strategy, α, policy, band = best_dd_key
+        strategy_label = "$(estimator)-$(strategy)-α$(Int(α*100)) (BANDS $(Int(band*100))%) - Menor Drawdown"
+        plot_allocation_over_time(weights_df, dates,
+            filename="allocation_best_drawdown.png",
             strategy_name=strategy_label)
     end
 
