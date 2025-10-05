@@ -223,6 +223,7 @@ end
 
 """
 Plot stacked area chart of portfolio weights over time.
+Groups assets by class to reduce legend clutter.
 """
 function plot_allocation_over_time(
     weights_df::DataFrame,
@@ -230,32 +231,58 @@ function plot_allocation_over_time(
     filename::String="allocation.png"
 )
     tickers = names(weights_df)[4:end]  # skip date, rebalanced, turnover
-    n_tickers = length(tickers)
 
-    # Prepare data for stacked area plot
-    weight_matrix = Matrix(weights_df[:, tickers])  # T × p matrix
+    # Define asset classes
+    asset_classes = Dict(
+        "Ações US" => ["SPY", "IWD", "IWF", "IWM"],
+        "Ações Intl" => ["EFA", "EEM", "VWO"],
+        "Bonds Treas" => ["TLT", "IEF"],
+        "Bonds Corp" => ["LQD", "HYG"],
+        "Metais" => ["GLD", "SLV"],
+        "Imóveis" => ["VNQ"],
+        "Commodities" => ["DBC", "USO"]
+    )
 
     # Use dates from weights_df, not the passed dates vector
     actual_dates = weights_df.date
 
-    # Validate
-    if size(weight_matrix, 1) != length(actual_dates)
-        @warn "Skipping allocation plot: size mismatch (weights=$(size(weight_matrix, 1)) vs dates=$(length(actual_dates)))"
-        return nothing
+    # Aggregate weights by asset class
+    aggregated_weights = zeros(length(actual_dates), length(asset_classes))
+    class_labels = collect(keys(asset_classes))
+
+    for (i, class_name) in enumerate(class_labels)
+        class_tickers = asset_classes[class_name]
+        # Sum weights for all tickers in this class
+        for ticker in class_tickers
+            if ticker ∈ tickers
+                aggregated_weights[:, i] .+= weights_df[:, ticker]
+            end
+        end
     end
 
-    # areaplot expects: x-axis (dates), y-values as columns (each column = one series)
-    # weight_matrix is T×p, which is correct orientation
+    # Colorblind-friendly palette by asset class
+    colors = [
+        RGB(0/255, 114/255, 178/255),      # Blue - US Stocks
+        RGB(86/255, 180/255, 233/255),     # Sky Blue - Intl Stocks
+        RGB(0/255, 158/255, 115/255),      # Teal - Treasury Bonds
+        RGB(0/255, 100/255, 80/255),       # Dark Teal - Corp Bonds
+        RGB(240/255, 228/255, 66/255),     # Yellow - Metals
+        RGB(213/255, 94/255, 0/255),       # Orange - Real Estate
+        RGB(204/255, 121/255, 167/255)     # Purple - Commodities
+    ]
+
     p = areaplot(
         actual_dates,
-        weight_matrix,  # Do NOT transpose - already correct
-        labels=permutedims(tickers),
+        aggregated_weights,
+        labels=permutedims(class_labels),
         xlabel="Data",
         ylabel="Peso",
-        title="Alocação do Portfólio ao Longo do Tempo",
+        title="Alocação do Portfólio por Classe de Ativo",
         legend=:outerbottom,
-        size=(1200, 600),
-        palette=:tab20
+        legendcolumns=4,
+        size=(1200, 650),
+        palette=colors,
+        fillalpha=0.9
     )
 
     savefig(p, "fig/$filename")
