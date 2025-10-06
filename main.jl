@@ -69,7 +69,7 @@ function main()
 
         # Optimization
         "cost_bps" => 6.0,  # Realistic average for liquid ETFs (2024)
-        "lambda" => 0.001,  # Turnover penalty coefficient
+        "lambda" => 0.0,  # No turnover penalty - test true adaptability
         "max_weight" => 0.30
     )
 
