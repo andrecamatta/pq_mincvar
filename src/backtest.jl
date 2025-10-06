@@ -170,6 +170,12 @@ end
 
 """
 Run comprehensive backtest for all combinations.
+
+Note: MINCVAR is non-parametric (uses historical scenarios directly),
+so robust estimators (LW/HUBER/TYLER) produce identical results. We only
+run MINCVAR with :LW to avoid redundant computation (-44% faster).
+
+MINVAR uses covariance matrix Σ, so all estimators are tested.
 """
 function run_all_backtests(
     returns_df::DataFrame;
@@ -185,31 +191,40 @@ function run_all_backtests(
 )
     all_results = Dict()
 
-    for estimator in estimators
-        for strategy in strategies
-            if strategy == :MINCVAR
-                for α in alphas
-                    # Monthly policy
-                    key = (estimator, strategy, α, :MONTHLY, 0.0)
+    for strategy in strategies
+        if strategy == :MINCVAR
+            # MINCVAR: Only run with :LW (results independent of estimator)
+            # Reason: MINCVAR uses R_window directly, not μ or Σ
+            estimator = :LW
+            @info "MINCVAR: Using only $estimator estimator (non-parametric, estimator-agnostic)"
+
+            for α in alphas
+                # Monthly policy
+                key = (estimator, strategy, α, :MONTHLY, 0.0)
+                @info "Backtesting: $key"
+                result = backtest_strategy(returns_df;
+                    strategy=strategy, estimator=estimator, α=α,
+                    window_size=window_size, policy=:MONTHLY,
+                    cost_bps=cost_bps, λ=λ, max_weight=max_weight)
+                all_results[key] = result
+
+                # Band policies
+                for band in bands
+                    key = (estimator, strategy, α, :BANDS, band)
                     @info "Backtesting: $key"
                     result = backtest_strategy(returns_df;
                         strategy=strategy, estimator=estimator, α=α,
-                        window_size=window_size, policy=:MONTHLY,
+                        window_size=window_size, policy=:BANDS, band=band,
                         cost_bps=cost_bps, λ=λ, max_weight=max_weight)
                     all_results[key] = result
-
-                    # Band policies
-                    for band in bands
-                        key = (estimator, strategy, α, :BANDS, band)
-                        @info "Backtesting: $key"
-                        result = backtest_strategy(returns_df;
-                            strategy=strategy, estimator=estimator, α=α,
-                            window_size=window_size, policy=:BANDS, band=band,
-                            cost_bps=cost_bps, λ=λ, max_weight=max_weight)
-                        all_results[key] = result
-                    end
                 end
-            else  # MINVAR
+            end
+
+        elseif strategy == :MINVAR
+            # MINVAR: Test all estimators (uses Σ, results differ)
+            @info "MINVAR: Testing all estimators (parametric, uses Σ)"
+
+            for estimator in estimators
                 # Monthly policy
                 key = (estimator, strategy, 0.0, :MONTHLY, 0.0)
                 @info "Backtesting: $key"

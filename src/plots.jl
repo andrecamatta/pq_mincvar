@@ -4,7 +4,12 @@ using DataFrames, Statistics
 include("metrics.jl")
 
 """
-Plot cumulative wealth curves for multiple strategies.
+Plot cumulative wealth curves for selected representative strategies.
+
+Selects 6-7 visually distinct strategies:
+- MINVAR: Best from each estimator (LW, HUBER, TYLER) - shows real differences
+- MINCVAR: Best variant (only 1, estimators are identical)
+- Benchmark: EW
 """
 function plot_wealth_curves(all_results::Dict; filename::String="wealth_curves.png")
     # Colorblind-friendly palette (Wong 2011)
@@ -12,20 +17,20 @@ function plot_wealth_curves(all_results::Dict; filename::String="wealth_curves.p
         :LW => RGB(0/255, 114/255, 178/255),      # Blue
         :HUBER => RGB(230/255, 159/255, 0/255),   # Orange
         :TYLER => RGB(204/255, 121/255, 167/255), # Purple
+        :MINCVAR => RGB(0/255, 158/255, 115/255), # Teal (for MINCVAR)
         :EW => RGB(0/255, 0/255, 0/255)           # Black
     )
     linestyles = Dict(:MINCVAR => :solid, :MINVAR => :dash, :BUYHOLD => :dot)
 
-    # Select top strategies only (reduce clutter)
-    # Best performer from each estimator + benchmark
     selected_keys = []
+
+    # 1. MINVAR: Select best from each estimator (real differences)
     for estimator in [:LW, :HUBER, :TYLER]
-        # Get best MINCVAR α95 for this estimator
         best_key = nothing
         best_sharpe = -Inf
         for (key, result) in all_results
             est, strat, α, policy, band = key
-            if est == estimator && strat == :MINCVAR && α == 0.95 && policy == :MONTHLY
+            if est == estimator && strat == :MINVAR
                 _, returns, _, _ = result
                 sharpe = mean(returns) / std(returns) * sqrt(252)
                 if sharpe > best_sharpe
@@ -38,7 +43,27 @@ function plot_wealth_curves(all_results::Dict; filename::String="wealth_curves.p
             push!(selected_keys, best_key)
         end
     end
-    # Add benchmark
+
+    # 2. MINCVAR: Select only 1 best (all estimators identical)
+    # Prefer BANDS with α=95 (best drawdown protection)
+    best_mincvar = nothing
+    best_sharpe = -Inf
+    for (key, result) in all_results
+        est, strat, α, policy, band = key
+        if strat == :MINCVAR && α == 0.95  # Only α=95, any estimator
+            _, returns, _, _ = result
+            sharpe = mean(returns) / std(returns) * sqrt(252)
+            if sharpe > best_sharpe
+                best_sharpe = sharpe
+                best_mincvar = key
+            end
+        end
+    end
+    if !isnothing(best_mincvar)
+        push!(selected_keys, best_mincvar)
+    end
+
+    # 3. Benchmark: EW-BUYHOLD
     for (key, result) in all_results
         est, strat, α, policy, band = key
         if strat == :BUYHOLD
@@ -92,16 +117,21 @@ function plot_wealth_curves(all_results::Dict; filename::String="wealth_curves.p
             continue
         end
 
-        label = "$(estimator)-$(strategy)"
+        # Build label
         if strategy == :MINCVAR
-            label *= "-α$(Int(α*100))"
+            label = "MINCVAR-α$(Int(α*100))"
         elseif strategy == :MINVAR
-            label *= "-α0"
+            label = "$(estimator)-MINVAR"
+        else
+            label = "EW-BUYHOLD"
         end
+
+        # Select color
+        plot_color = strategy == :MINCVAR ? colors[:MINCVAR] : colors[estimator]
 
         plot!(p, dates, wealth,
             label=label,
-            color=colors[estimator],
+            color=plot_color,
             linestyle=linestyles[strategy],
             linewidth=strategy == :BUYHOLD ? 3 : 2,
             alpha=strategy == :BUYHOLD ? 1.0 : 0.9)
@@ -473,12 +503,14 @@ function generate_all_plots(all_results::Dict, metrics_df::DataFrame)
     end
 
     # Plot allocation for lowest MaxDD strategy
-    # HUBER-MINCVAR α95% BANDS 10% (MaxDD=16.0%, melhor proteção downside)
+    # MINCVAR α95% BANDS 10% (MaxDD=16.0%, melhor proteção downside)
+    # Note: MINCVAR is non-parametric, estimator doesn't affect results
     best_dd_key = (:HUBER, :MINCVAR, 0.95, :BANDS, 0.10)
     if haskey(all_results, best_dd_key)
         weights_df, _, _, dates = all_results[best_dd_key]
         estimator, strategy, α, policy, band = best_dd_key
-        strategy_label = "$(estimator)-$(strategy)-α$(Int(α*100)) (BANDS $(Int(band*100))%) - Menor Drawdown"
+        # Remove estimator from label since MINCVAR is estimator-agnostic
+        strategy_label = "MINCVAR-α$(Int(α*100)) (BANDS $(Int(band*100))%) - Menor Drawdown"
         plot_allocation_over_time(weights_df, dates,
             filename="allocation_best_drawdown.png",
             strategy_name=strategy_label)
