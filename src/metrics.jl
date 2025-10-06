@@ -149,7 +149,7 @@ function generate_metrics_table(all_results::Dict; rf::Float64 = 0.0)
     rows = []
 
     for (key, result) in all_results
-        estimator, strategy, α, policy, band = key
+        estimator, strategy, α, policy, band, λ = key
         weights_df, returns, wealth, _ = result
 
         # Extract turnover series from weights DataFrame
@@ -163,6 +163,7 @@ function generate_metrics_table(all_results::Dict; rf::Float64 = 0.0)
             "alpha" => α,
             "policy" => string(policy),
             "band" => band,
+            "lambda" => λ,
             "ann_return" => metrics["ann_return"],
             "ann_volatility" => metrics["ann_volatility"],
             "sharpe" => metrics["sharpe"],

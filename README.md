@@ -50,8 +50,8 @@ Top 5 strategies:
 1. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
 2. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
 3. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
-4. LW-MINCVAR-α95-BANDS: Sharpe=0.524
-5. TYLER-MINVAR-α0-MONTHLY: Sharpe=0.514
+4. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
+5. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
 
 ## Interpretation
 
@@ -78,4 +78,4 @@ Top 5 strategies:
 
 ---
 
-Generated on 2025-10-05T22:37:08.014
+Generated on 2025-10-06T08:51:30.192

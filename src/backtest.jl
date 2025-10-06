@@ -184,14 +184,17 @@ function run_all_backtests(
     alphas::Vector{Float64} = [0.95, 0.99],
     policies::Vector{Symbol} = [:MONTHLY, :BANDS],
     bands::Vector{Float64} = [0.02, 0.05, 0.10],
+    lambdas::Vector{Float64} = [0.0, 0.0003, 0.001],
     window_size::Int = 756,
     cost_bps::Float64 = 6.0,
-    λ::Float64 = 0.0,
     max_weight::Float64 = 0.30
 )
     all_results = Dict()
 
-    for strategy in strategies
+    for λ in lambdas
+        @info "Testing lambda=$λ"
+
+        for strategy in strategies
         if strategy == :MINCVAR
             # MINCVAR: Only run with :LW (results independent of estimator)
             # Reason: MINCVAR uses R_window directly, not μ or Σ
@@ -200,7 +203,7 @@ function run_all_backtests(
 
             for α in alphas
                 # Monthly policy
-                key = (estimator, strategy, α, :MONTHLY, 0.0)
+                key = (estimator, strategy, α, :MONTHLY, 0.0, λ)
                 @info "Backtesting: $key"
                 result = backtest_strategy(returns_df;
                     strategy=strategy, estimator=estimator, α=α,
@@ -210,7 +213,7 @@ function run_all_backtests(
 
                 # Band policies
                 for band in bands
-                    key = (estimator, strategy, α, :BANDS, band)
+                    key = (estimator, strategy, α, :BANDS, band, λ)
                     @info "Backtesting: $key"
                     result = backtest_strategy(returns_df;
                         strategy=strategy, estimator=estimator, α=α,
@@ -226,7 +229,7 @@ function run_all_backtests(
 
             for estimator in estimators
                 # Monthly policy
-                key = (estimator, strategy, 0.0, :MONTHLY, 0.0)
+                key = (estimator, strategy, 0.0, :MONTHLY, 0.0, λ)
                 @info "Backtesting: $key"
                 result = backtest_strategy(returns_df;
                     strategy=strategy, estimator=estimator,
@@ -236,7 +239,7 @@ function run_all_backtests(
 
                 # Band policies
                 for band in bands
-                    key = (estimator, strategy, 0.0, :BANDS, band)
+                    key = (estimator, strategy, 0.0, :BANDS, band, λ)
                     @info "Backtesting: $key"
                     result = backtest_strategy(returns_df;
                         strategy=strategy, estimator=estimator,
@@ -246,7 +249,8 @@ function run_all_backtests(
                 end
             end
         end
-    end
+        end  # end lambda loop
+    end  # end strategy loop
 
     return all_results
 end

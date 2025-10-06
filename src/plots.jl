@@ -492,30 +492,54 @@ function generate_all_plots(all_results::Dict, metrics_df::DataFrame)
     plot_tail_losses(all_results, 0.01, filename="tail_losses_1pct.png")
     plot_turnover_heatmap(metrics_df)
 
-    # Plot allocation for best Sharpe Ratio strategy
-    # TYLER-MINVAR BANDS (Sharpe=0.576, #1 overall)
-    best_sharpe_key = (:TYLER, :MINVAR, 0.0, :BANDS, 0.02)
-    if haskey(all_results, best_sharpe_key)
-        weights_df, _, _, dates = all_results[best_sharpe_key]
-        estimator, strategy, α, policy, band = best_sharpe_key
-        strategy_label = "$(estimator)-$(strategy) (BANDS $(Int(band*100))%) - Melhor Sharpe"
-        plot_allocation_over_time(weights_df, dates,
-            filename="allocation_best_sharpe.png",
-            strategy_name=strategy_label)
-    end
+    # Dynamically find best strategies from metrics
+    # Best Sharpe Ratio (excluding benchmark)
+    metrics_strategies = filter(row -> row.strategy != "BUYHOLD", metrics_df)
 
-    # Plot allocation for lowest MaxDD strategy
-    # MINCVAR α95% BANDS 10% (MaxDD=16.0%, melhor proteção downside)
-    # Note: MINCVAR is non-parametric, estimator doesn't affect results
-    best_dd_key = (:LW, :MINCVAR, 0.95, :BANDS, 0.10)
-    if haskey(all_results, best_dd_key)
-        weights_df, _, _, dates = all_results[best_dd_key]
-        estimator, strategy, α, policy, band = best_dd_key
-        # Remove estimator from label since MINCVAR is estimator-agnostic
-        strategy_label = "MINCVAR-α$(Int(α*100)) (BANDS $(Int(band*100))%) - Menor Drawdown"
-        plot_allocation_over_time(weights_df, dates,
-            filename="allocation_best_drawdown.png",
-            strategy_name=strategy_label)
+    if nrow(metrics_strategies) > 0
+        # Best Sharpe
+        best_sharpe_row = first(sort(metrics_strategies, :sharpe, rev=true), 1)[1, :]
+        best_sharpe_key = (
+            Symbol(best_sharpe_row.estimator),
+            Symbol(best_sharpe_row.strategy),
+            best_sharpe_row.alpha,
+            Symbol(best_sharpe_row.policy),
+            best_sharpe_row.band,
+            best_sharpe_row.lambda
+        )
+
+        if haskey(all_results, best_sharpe_key)
+            weights_df, _, _, dates = all_results[best_sharpe_key]
+            estimator, strategy, α, policy, band, λ = best_sharpe_key
+            policy_str = policy == :MONTHLY ? "MONTHLY" : "BANDS $(Int(band*100))%"
+            strategy_label = "$(estimator)-$(strategy) ($(policy_str), λ=$(λ)) - Melhor Sharpe"
+            plot_allocation_over_time(weights_df, dates,
+                filename="allocation_best_sharpe.png",
+                strategy_name=strategy_label)
+            @info "Best Sharpe allocation plot: $strategy_label"
+        end
+
+        # Best Drawdown (lowest max_drawdown)
+        best_dd_row = first(sort(metrics_strategies, :max_drawdown), 1)[1, :]
+        best_dd_key = (
+            Symbol(best_dd_row.estimator),
+            Symbol(best_dd_row.strategy),
+            best_dd_row.alpha,
+            Symbol(best_dd_row.policy),
+            best_dd_row.band,
+            best_dd_row.lambda
+        )
+
+        if haskey(all_results, best_dd_key)
+            weights_df, _, _, dates = all_results[best_dd_key]
+            estimator, strategy, α, policy, band, λ = best_dd_key
+            policy_str = policy == :MONTHLY ? "MONTHLY" : "BANDS $(Int(band*100))%"
+            strategy_label = "$(estimator)-$(strategy) ($(policy_str), λ=$(λ)) - Menor Drawdown"
+            plot_allocation_over_time(weights_df, dates,
+                filename="allocation_best_drawdown.png",
+                strategy_name=strategy_label)
+            @info "Best Drawdown allocation plot: $strategy_label"
+        end
     end
 
     @info "Plots saved to ./fig/"

@@ -69,7 +69,7 @@ function main()
 
         # Optimization
         "cost_bps" => 6.0,  # Realistic average for liquid ETFs (2024)
-        "lambda" => 0.0003,  # Intermediate penalty: target ~8% turnover (~0.5% drag)
+        "lambdas" => [0.0, 0.0003, 0.001],  # Grid search: free, intermediate, quasi-static
         "max_weight" => 0.30
     )
 
@@ -180,9 +180,9 @@ function main()
         alphas=config["alphas"],
         policies=config["policies"],
         bands=config["bands"],
+        lambdas=config["lambdas"],
         window_size=config["window_size"],
         cost_bps=config["cost_bps"],
-        λ=config["lambda"],
         max_weight=config["max_weight"]
     )
 
@@ -195,7 +195,7 @@ function main()
 
     # Equal-weight buy-and-hold (annual rebalance)
     bench_result = benchmark_equal_weight(returns_df, cost_bps=config["cost_bps"])
-    all_results[(:EW, :BUYHOLD, 0.0, :ANNUAL, 0.0)] = bench_result
+    all_results[(:EW, :BUYHOLD, 0.0, :ANNUAL, 0.0, 0.0)] = bench_result
     @info "Benchmark: Equal-weight buy-and-hold (annual rebalance)"
 
     # ========================================================================
