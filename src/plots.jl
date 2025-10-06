@@ -355,9 +355,11 @@ function plot_tail_losses(
 
         tail = get_tail_losses(returns, α)
 
-        label = "$(estimator)-$(strategy)"
+        # Remove estimator prefix for MINCVAR (non-parametric, estimator-agnostic)
         if strategy == :MINCVAR
-            label *= "-α$(Int(strat_α*100))"
+            label = "$(strategy)-α$(Int(strat_α*100))"
+        else
+            label = "$(estimator)-$(strategy)"
         end
 
         data[label] = tail
@@ -505,7 +507,7 @@ function generate_all_plots(all_results::Dict, metrics_df::DataFrame)
     # Plot allocation for lowest MaxDD strategy
     # MINCVAR α95% BANDS 10% (MaxDD=16.0%, melhor proteção downside)
     # Note: MINCVAR is non-parametric, estimator doesn't affect results
-    best_dd_key = (:HUBER, :MINCVAR, 0.95, :BANDS, 0.10)
+    best_dd_key = (:LW, :MINCVAR, 0.95, :BANDS, 0.10)
     if haskey(all_results, best_dd_key)
         weights_df, _, _, dates = all_results[best_dd_key]
         estimator, strategy, α, policy, band = best_dd_key
