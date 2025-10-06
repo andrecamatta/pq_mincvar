@@ -47,11 +47,11 @@ See `results/metrics.csv` for detailed metrics including:
 ### Best Strategies (by Sharpe Ratio)
 
 Top 5 strategies:
-1. LW-MINVAR-α0-BANDS: Sharpe=0.523
-2. HUBER-MINVAR-α0-BANDS: Sharpe=0.522
-3. TYLER-MINVAR-α0-BANDS: Sharpe=0.516
-4. LW-MINVAR-α0-BANDS: Sharpe=0.509
-5. HUBER-MINVAR-α0-BANDS: Sharpe=0.508
+1. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
+2. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
+3. TYLER-MINVAR-α0-BANDS: Sharpe=0.576
+4. LW-MINCVAR-α95-BANDS: Sharpe=0.524
+5. TYLER-MINVAR-α0-MONTHLY: Sharpe=0.514
 
 ## Interpretation
 
@@ -78,4 +78,4 @@ Top 5 strategies:
 
 ---
 
-Generated on 2025-10-05T22:27:46.145
+Generated on 2025-10-05T22:37:08.014
