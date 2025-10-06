@@ -159,21 +159,9 @@ function plot_frontier(
         legendfontsize=8
     )
 
-    # Add iso-Sharpe curves (diagonal lines: CVaR = offset + Sharpe * σ)
-    σ_range = [minimum(p.σ for p in all_points), maximum(p.σ for p in all_points)]
-    sharpe_levels = [0.5, 1.0, 1.5, 2.0]
-
-    for sr in sharpe_levels
-        # Iso-Sharpe line: μ/σ = SR → μ = SR*σ
-        # Approximate CVaR ≈ μ + k*σ (for visualization, use k≈1.5 for α=0.95)
-        cvar_line = [sr * σ_val + 1.5 * σ_val for σ_val in σ_range]
-        plot!(p, σ_range, cvar_line,
-            label="Sharpe=$(sr)",
-            linestyle=:dash,
-            linewidth=1,
-            color=:gray,
-            alpha=0.4)
-    end
+    # Note: Iso-Sharpe curves removed because Sharpe Ratio uses expected return (μ),
+    # not CVaR. In (σ, CVaR) space, iso-Sharpe lines would be mathematically invalid.
+    # Sharpe values are implicit in the point positions and can be read from metrics.
 
     # Plot all points (color by estimator, shape by strategy)
     colors = Dict(:LW => RGB(0/255, 114/255, 178/255),      # Blue
